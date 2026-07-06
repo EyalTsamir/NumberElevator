@@ -55,6 +55,7 @@ export function formatValue(value, type) {
     return `${f.sign}${f.whole} ${f.num}/${f.den}`;
   }
   if (type === 'decimal') return formatDecimal(value);
+  if (type === 'percent') return formatDecimal(value) + '%';
   return String(value).replace('-', '−');
 }
 
@@ -72,7 +73,10 @@ export function formatValueHTML(value, type) {
     const wholePart = f.whole !== 0 ? `<span class="frac-w">${f.whole}</span>` : '';
     return `<span class="numval numval-frac" dir="ltr">${f.sign}${wholePart}${frac}</span>`;
   }
-  const text = type === 'decimal' ? formatDecimal(value) : String(value).replace('-', '−');
+  let text;
+  if (type === 'decimal') text = formatDecimal(value);
+  else if (type === 'percent') text = formatDecimal(value) + '%';
+  else text = String(value).replace('-', '−');
   return `<span class="numval" dir="ltr">${text}</span>`;
 }
 

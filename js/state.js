@@ -40,10 +40,10 @@ export function recordResult(levelId, stars, score) {
   save();
 }
 
-/** Level 1 of every type is open; later levels need the previous one cleared. */
-export function isUnlocked(level) {
-  if (level.level === 1) return true;
-  return isCompleted(`${level.type}-${level.level - 1}`);
+/** Exercise 1 of every grade is open; later ones need the previous one cleared. */
+export function isUnlocked(exercise) {
+  if (exercise.index === 1) return true;
+  return isCompleted(`${exercise.grade}-${exercise.index - 1}`);
 }
 
 export function totalStars() {

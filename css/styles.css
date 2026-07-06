@@ -508,6 +508,41 @@ body::before {
 /* step-quiz options don't drag — plain click targets */
 .step-options .tile { cursor: pointer; touch-action: auto; }
 
+/* ------------------------------------------------ phase 1: number pad (type the jump) */
+/* The child WRITES the jump: a big readout "blank" above a tactile keypad. */
+.numpad { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.entry {
+  min-width: 118px; min-height: 52px; padding: 2px 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border-radius: 16px; box-shadow: var(--shadow-md);
+  border: 3px dashed hsl(var(--hue) 80% 62%);
+  font-family: var(--font-display); font-size: 2rem; color: var(--ink);
+  transition: transform .1s, box-shadow .15s, background .2s, border-color .2s;
+}
+.entry.is-empty .entry__text { color: hsl(var(--hue) 55% 72%); }
+.entry__suffix { color: var(--ink-soft); margin-inline-start: 1px; }
+.entry.is-correct { background: var(--green); color: #fff; border-style: solid; border-color: var(--green-d); }
+.entry.is-correct .entry__suffix { color: rgba(255, 255, 255, .85); }
+
+.keypad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(258px, 100%);
+}
+.keypad__key {
+  height: clamp(42px, 7.4vh, 52px); border: none; cursor: pointer; border-radius: 14px;
+  background: #fff; color: var(--ink); font-family: var(--font-display); font-size: 1.5rem;
+  box-shadow: 0 4px 0 #e3d3b0, var(--shadow-md); transition: transform .08s, box-shadow .08s;
+  -webkit-user-select: none; user-select: none;
+}
+.keypad__key:hover { transform: translateY(-1px); }
+.keypad__key:active { transform: translateY(3px); box-shadow: 0 1px 0 #e3d3b0; }
+.keypad__spacer { visibility: hidden; }
+.keypad__key--ok {
+  width: min(258px, 100%); height: clamp(42px, 7vh, 50px); font-size: 1.4rem;
+  background: var(--green); color: #fff; box-shadow: 0 4px 0 var(--green-d), var(--shadow-md);
+}
+.keypad__key--ok:active { box-shadow: 0 1px 0 var(--green-d); }
+.keypad__key--ok:disabled { opacity: .6; }
+
 /* ============================================================== COMPLETE == */
 .complete { align-items: center; overflow-y: auto; padding: calc(14px + var(--sat)) 12px calc(14px + var(--sab)); }
 .complete__card { margin-block: auto; }

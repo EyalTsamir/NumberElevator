@@ -2,7 +2,7 @@
 // increment) then phase 2 (drag the numbers onto the tower), tally score/stars, and finish.
 
 import { h, muteToggle } from './ui.js';
-import { getLevel, getType } from './levels.js';
+import { getExercise, getGrade } from './levels.js';
 import { recordResult } from './state.js';
 import { createBuilding, fitBuilding } from './building.js';
 import { createElevator } from './elevator.js';
@@ -11,8 +11,8 @@ import { runSetup } from './phaseSetup.js';
 import * as sfx from './audio.js';
 
 export function renderGame({ navigate, params }) {
-  const level = getLevel(params.levelId);
-  const type = getType(level.type);
+  const level = getExercise(params.levelId);
+  const grade = getGrade(level.grade);
   const building = createBuilding(level);
   const elevator = createElevator(building);
 
@@ -40,10 +40,10 @@ export function renderGame({ navigate, params }) {
     h('div', { class: 'console' }, phaseChip, banner, consoleBody),
   );
 
-  const screen = h('div', { class: 'screen game phase-1', style: { '--hue': type.hue } },
+  const screen = h('div', { class: 'screen game phase-1', style: { '--hue': grade.hue } },
     h('div', { class: 'topbar' },
       h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'חזרה לתפריט', onClick: () => { sfx.click(); navigate('select'); } }, '→'),
-      h('span', { class: 'topbar__title' }, `${type.name} · שלב ${level.level}`),
+      h('span', { class: 'topbar__title' }, `${grade.name} · תרגיל ${level.index}`),
       h('div', { class: 'score' }, h('span', { class: 'score__cap' }, 'ניקוד'), scoreEl),
       muteToggle(),
     ),
@@ -97,7 +97,9 @@ export function renderGame({ navigate, params }) {
 
   requestAnimationFrame(async () => {
     refit();
-    elevator.place(0);
+    // Park the car on the lowest given anchor — its readout then shows a number the
+    // child already has, never leaking the value of a blank floor (windows rarely include 0).
+    elevator.place(Math.min(...level.anchors));
     elevator.openDoors();
     setPhase(1);
 

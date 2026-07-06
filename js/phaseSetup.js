@@ -166,6 +166,7 @@ function makeDistractors(level, gridKeys, count) {
   const cands = [level.max + s, level.max + 2 * s, level.max + 3 * s, level.min - s, level.min - 2 * s].map(round);
   const out = [];
   for (const v of cands) {
+    if (v < 0) continue; // axis is non-negative — never offer a negative tile
     if (!gridKeys.has(key(v)) && !out.some((o) => key(o) === key(v))) {
       out.push(v);
       if (out.length >= count) break;

@@ -1,6 +1,7 @@
-// phaseStep.js — Phase 1: figure out the elevator's increment (how much the
-// ride rises by from one floor to the next). The anchor floors are already
-// labeled on the tower; the child studies the gaps and picks the right jump.
+// phaseStep.js — Phase 1: figure out the elevator's jump (how much it rises from
+// one floor to the next) and WRITE it. The anchor floors are already labeled on
+// the tower; the child studies the gaps and types the jump on a number pad.
+// Fraction jumps (¼, ½…) fall back to tap-to-choose, since they're awkward to type.
 
 import { h } from './ui.js';
 import { round, key, formatValueHTML, formatValue } from './numbers.js';
@@ -12,7 +13,111 @@ const shuffle = (arr) => {
   return a;
 };
 
-export function runStep({ level, building, consoleBody, banner, scoreApi }) {
+export function runStep(ctx) {
+  const { level } = ctx;
+  return level.type === 'fraction' ? runChoose(ctx) : runType(ctx);
+}
+
+// --- typed entry (whole / decimal / percent) ---
+function runType({ level, building, consoleBody, banner, scoreApi }) {
+  return new Promise((finish) => {
+    level.anchors.forEach((v) => building.fillFloor(v, { locked: true, anchor: true }));
+
+    banner.innerHTML = '';
+    banner.append(
+      h('strong', {}, 'בכמה עולים בכל קומה? 🛗'),
+      h('span', {}, 'הביטו בבניין וכתבו בכמה המעלית עולה בכל קפיצה.'),
+    );
+
+    const isPercent = level.type === 'percent';
+    const allowDot = level.type === 'decimal';
+    let entry = '';
+    let attempts = 0;
+    let done = false;
+
+    const entryText = h('span', { class: 'entry__text' });
+    const entryEl = h('div', {
+      class: 'entry' + (isPercent ? ' entry--percent' : ''),
+      dir: 'ltr', 'aria-live': 'polite',
+    }, entryText, isPercent ? h('span', { class: 'entry__suffix' }, '%') : null);
+
+    const paint = () => {
+      entryText.textContent = entry === '' ? '?' : entry;
+      entryEl.classList.toggle('is-empty', entry === '');
+      entryEl.setAttribute('aria-label', entry === '' ? 'כתבו את הקפיצה' : formatValue(parseFloat(entry), level.type));
+    };
+
+    const rows = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      [allowDot ? '.' : '', '0', 'back'],
+    ];
+    const pad = h('div', { class: 'keypad' });
+    rows.flat().forEach((k) => {
+      if (k === '') { pad.append(h('span', { class: 'keypad__spacer', 'aria-hidden': 'true' })); return; }
+      const label = k === 'back' ? '⌫' : k;
+      const aria = k === 'back' ? 'מחיקה' : k === '.' ? 'נקודה עשרונית' : k;
+      const btn = h('button', { class: 'keypad__key', type: 'button', 'aria-label': aria }, label);
+      btn.addEventListener('click', () => press(k));
+      pad.append(btn);
+    });
+    const okBtn = h('button', { class: 'keypad__key keypad__key--ok', type: 'button', 'aria-label': 'אישור' }, '✓');
+    okBtn.addEventListener('click', submit);
+
+    consoleBody.innerHTML = '';
+    consoleBody.append(h('div', { class: 'numpad' },
+      h('div', { class: 'tray-title' }, 'כתבו את גודל הקפיצה'),
+      entryEl, pad, okBtn,
+    ));
+    paint();
+
+    function press(k) {
+      if (done) return;
+      sfx.click();
+      if (k === 'back') { entry = entry.slice(0, -1); paint(); return; }
+      if (k === '.') { if (!entry.includes('.')) entry += entry === '' ? '0.' : '.'; paint(); return; }
+      if (entry.replace('.', '').length >= 7) return; // guard runaway input
+      if (k === '0' && entry === '') return;          // no leading zero
+      entry += k;
+      paint();
+    }
+
+    function submit() {
+      if (done || entry === '' || entry === '.') return;
+      const value = parseFloat(entry);
+      if (key(round(value)) === key(level.step)) {
+        done = true;
+        sfx.place();
+        scoreApi.add(Math.max(10, 30 - attempts * 10));
+        entryEl.classList.add('is-correct');
+        okBtn.disabled = true;
+        cleanup();
+        setTimeout(finish, 550);
+      } else {
+        sfx.wrong();
+        scoreApi.mistake();
+        attempts++;
+        entryEl.classList.add('shake');
+        setTimeout(() => { entryEl.classList.remove('shake'); entry = ''; paint(); }, 440);
+      }
+    }
+
+    // Physical keyboard works too (nice on desktop; also lets tests drive it).
+    function onKey(e) {
+      if (done) return;
+      if (e.key >= '0' && e.key <= '9') { press(e.key); e.preventDefault(); }
+      else if (e.key === '.' && allowDot) { press('.'); e.preventDefault(); }
+      else if (e.key === 'Backspace') { press('back'); e.preventDefault(); }
+      else if (e.key === 'Enter' || e.key === '=') { submit(); e.preventDefault(); }
+    }
+    window.addEventListener('keydown', onKey);
+    function cleanup() { window.removeEventListener('keydown', onKey); }
+  });
+}
+
+// --- tap-to-choose (fractions) ---
+function runChoose({ level, building, consoleBody, banner, scoreApi }) {
   return new Promise((finish) => {
     level.anchors.forEach((v) => building.fillFloor(v, { locked: true, anchor: true }));
 
@@ -55,14 +160,9 @@ export function runStep({ level, building, consoleBody, banner, scoreApi }) {
   });
 }
 
-/** The real step plus 3 plausible distractors, as multiple-choice options. */
+/** The real step plus 3 plausible fraction distractors, as multiple-choice options. */
 function makeStepOptions(level) {
-  const pools = {
-    whole: [1, 2, 3, 5, 10],
-    fraction: [0.25, 0.5, 1, 2],
-    decimal: [0.1, 0.2, 0.5, 1, 2],
-  };
-  const pool = [...(pools[level.type] || pools.whole), level.step * 2, level.step / 2];
+  const pool = [0.25, 0.5, 0.75, 1, level.step * 2, level.step / 2];
   const seen = new Set([key(level.step)]);
   const distractors = [];
   for (const v of shuffle(pool)) {
