@@ -68,6 +68,15 @@ export function wrong() {
   });
 }
 
+// Streak combo — a short sparkle that rises with the streak length
+export function combo(streak = 2) {
+  play(() => {
+    const base = 660 + Math.min(streak, 6) * 70;
+    note(base, 0, 0.1, { type: 'triangle', peak: 0.12 });
+    note(base * 1.5, 0.05, 0.12, { type: 'sine', peak: 0.09 });
+  });
+}
+
 // Level complete — happy little fanfare
 export function win() {
   play(() => {

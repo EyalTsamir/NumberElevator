@@ -71,7 +71,7 @@ export function renderSelect({ navigate }) {
 }
 
 export function renderComplete({ navigate, params }) {
-  const { levelId, score, stars: earned, mistakes } = params;
+  const { levelId, score, stars: earned, mistakes, heartBonus = 0, bestStreak = 0 } = params;
   const level = getExercise(levelId);
   const grade = getGrade(level.grade);
   const nextId = nextExerciseId(levelId);
@@ -98,7 +98,11 @@ export function renderComplete({ navigate, params }) {
       h('p', { class: 'complete__sub' }, `${grade.name} · תרגיל ${level.index}`),
       stars(earned),
       h('div', { class: 'complete__score' }, h('span', {}, 'ניקוד'), h('strong', {}, String(score))),
-      mistakes === 0 ? h('p', { class: 'complete__perfect' }, 'בלי אף טעות! ⭐') : null,
+      h('div', { class: 'complete__notes' },
+        mistakes === 0 ? h('span', { class: 'complete__note complete__note--good' }, 'בלי אף טעות! ⭐') : null,
+        bestStreak >= 3 ? h('span', { class: 'complete__note complete__note--streak' }, `🔥 רצף שיא ×${bestStreak}`) : null,
+        heartBonus > 0 ? h('span', { class: 'complete__note complete__note--heart' }, `❤️ בונוס לבבות +${heartBonus}`) : null,
+      ),
       actions,
     ),
   );

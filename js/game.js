@@ -16,18 +16,57 @@ export function renderGame({ navigate, params }) {
   const building = createBuilding(level);
   const elevator = createElevator(building);
 
+  const MAX_HEARTS = 3;
   let score = 0;
   let mistakes = 0;
+  let streak = 0;      // correct answers in a row — drives the reward bonus
+  let bestStreak = 0;
+  const heartsLeft = () => MAX_HEARTS - Math.min(mistakes, MAX_HEARTS);
 
   const scoreEl = h('strong', { class: 'score__val' }, '0');
+  const scorePill = h('div', { class: 'score' }, h('span', { class: 'score__cap' }, 'ניקוד'), scoreEl);
+
+  // Hearts (lives): visible stakes. A mistake softly spends one; they never block play.
+  const heartEls = [];
+  const livesEl = h('div', { class: 'lives', role: 'img', 'aria-label': `${MAX_HEARTS} חיים` });
+  for (let i = 0; i < MAX_HEARTS; i++) {
+    const heart = h('span', { class: 'life', 'aria-hidden': 'true' }, '❤️');
+    heartEls.push(heart);
+    livesEl.append(heart);
+  }
+
+  const bumpScore = () => { scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump'); };
+  function floatGain(text, hot) {
+    const pop = h('span', { class: 'gain-pop' + (hot ? ' gain-pop--hot' : '') }, text);
+    scorePill.append(pop);
+    setTimeout(() => pop.remove(), 850);
+  }
+
   const scoreApi = {
-    add(n) {
-      score += n;
+    // A correct answer: award the base points plus a streak bonus, and celebrate.
+    correct(base) {
+      streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      const hot = streak >= 2;
+      const gained = base + (hot ? (streak - 1) * 5 : 0);
+      score += gained;
       scoreEl.textContent = String(score);
-      scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
+      bumpScore();
+      floatGain(hot ? `+${gained} 🔥×${streak}` : `+${gained}`, hot);
+      if (hot) sfx.combo(streak);
     },
     get: () => score,
-    mistake() { mistakes++; },
+    // A mistake: break the streak (the gentle penalty) and spend a heart.
+    mistake() {
+      mistakes++;
+      streak = 0;
+      const heart = heartEls[MAX_HEARTS - mistakes];
+      if (heart && !heart.classList.contains('is-lost')) {
+        heart.classList.add('losing');
+        livesEl.classList.remove('lives--nudge'); void livesEl.offsetWidth; livesEl.classList.add('lives--nudge');
+        setTimeout(() => { heart.classList.remove('losing'); heart.classList.add('is-lost'); }, 400);
+      }
+    },
   };
 
   const phaseChip = h('div', { class: 'phase-chip' });
@@ -44,7 +83,7 @@ export function renderGame({ navigate, params }) {
     h('div', { class: 'topbar' },
       h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'חזרה לתפריט', onClick: () => { sfx.click(); navigate('select'); } }, '→'),
       h('span', { class: 'topbar__title' }, `${grade.name} · תרגיל ${level.index}`),
-      h('div', { class: 'score' }, h('span', { class: 'score__cap' }, 'ניקוד'), scoreEl),
+      h('div', { class: 'status' }, livesEl, scorePill),
       muteToggle(),
     ),
     stage,
@@ -108,12 +147,17 @@ export function renderGame({ navigate, params }) {
     setPhase(2);
     await runSetup({ level, building, consoleBody, banner, scoreApi });
 
-    const starCount = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
+    // Stars simply mirror the hearts kept — one clear, visible rule (always ≥1).
+    const hearts = heartsLeft();
+    const starCount = Math.max(1, hearts);
+    // Careful-play reward: a bonus for every heart still full.
+    const heartBonus = hearts * 15;
+    if (heartBonus) { score += heartBonus; scoreEl.textContent = String(score); }
     recordResult(level.id, starCount, score);
     window.removeEventListener('resize', refit);
     window.visualViewport?.removeEventListener('resize', onVVResize);
     ro.disconnect();
-    setTimeout(() => navigate('complete', { levelId: level.id, score, stars: starCount, mistakes }), 750);
+    setTimeout(() => navigate('complete', { levelId: level.id, score, stars: starCount, mistakes, hearts, heartBonus, bestStreak }), 750);
   });
 
   return screen;

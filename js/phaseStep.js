@@ -89,7 +89,7 @@ function runType({ level, building, consoleBody, banner, scoreApi }) {
       if (key(round(value)) === key(level.step)) {
         done = true;
         sfx.place();
-        scoreApi.add(Math.max(10, 30 - attempts * 10));
+        scoreApi.correct(Math.max(10, 30 - attempts * 10));
         entryEl.classList.add('is-correct');
         okBtn.disabled = true;
         cleanup();
@@ -144,7 +144,7 @@ function runChoose({ level, building, consoleBody, banner, scoreApi }) {
     function choose(value, el) {
       if (key(value) === key(level.step)) {
         sfx.place();
-        scoreApi.add(Math.max(10, 30 - attempts * 10));
+        scoreApi.correct(Math.max(10, 30 - attempts * 10));
         el.classList.add('is-correct');
         buttons.forEach((b) => { b.disabled = true; });
         setTimeout(finish, 550);

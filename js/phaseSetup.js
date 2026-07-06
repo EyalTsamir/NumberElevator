@@ -68,7 +68,7 @@ export function runSetup({ level, building, consoleBody, banner, scoreApi }) {
         tileEl.classList.add('placed');
         setTimeout(() => tileEl.remove(), 200);
         sfx.place();
-        scoreApi.add(10);
+        scoreApi.correct(10);
         if (--remaining === 0) done();
       } else {
         sfx.wrong();

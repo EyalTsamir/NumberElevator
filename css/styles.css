@@ -139,10 +139,32 @@ body::before {
 .topbar .star-count { font-family: var(--font-display); font-size: 1.15rem; background: #fff; padding: .3em .8em; border-radius: 999px; box-shadow: var(--shadow-md); }
 .select .topbar { justify-content: space-between; }
 .select .topbar__title { flex: 1; text-align: center; }
-.score { margin-inline-start: auto; background: #fff; border-radius: 999px; padding: .28em .9em; display: flex; align-items: baseline; gap: .4em; box-shadow: var(--shadow-md); }
+.status { display: flex; align-items: center; gap: 10px; margin-inline-start: auto; }
+.score { position: relative; background: #fff; border-radius: 999px; padding: .28em .9em; display: flex; align-items: baseline; gap: .4em; box-shadow: var(--shadow-md); }
 .score__cap { color: var(--ink-soft); font-size: .82rem; }
 .score__val { font-family: var(--font-display); font-size: 1.4rem; color: var(--orange-d); display: inline-block; }
 .score__val.bump { animation: bump .32s ease; }
+
+/* floating "+points" reward that rises from the score pill */
+.gain-pop {
+  position: absolute; inset-inline-start: 50%; top: -4px; transform: translateX(-50%);
+  font-family: var(--font-display); font-size: 1rem; color: var(--green-d);
+  white-space: nowrap; pointer-events: none; z-index: 5; animation: gainRise .85s ease forwards;
+}
+.gain-pop--hot { color: var(--orange-d); font-size: 1.12rem; }
+@keyframes gainRise {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(.8); }
+  22% { opacity: 1; transform: translate(-50%, -16px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -38px) scale(1); }
+}
+
+/* hearts (lives) */
+.lives { display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 999px; padding: .32em .6em; box-shadow: var(--shadow-md); }
+.life { font-size: 1.12rem; line-height: 1; transform-origin: center; transition: filter .3s ease, opacity .3s ease, transform .3s ease; }
+.life.is-lost { filter: grayscale(1) brightness(1.3); opacity: .38; transform: scale(.82); }
+.life.losing { animation: heartLose .4s ease; }
+.lives--nudge { animation: shake .4s ease; }
+@keyframes heartLose { 0% { transform: scale(1); } 35% { transform: scale(1.45) rotate(-8deg); } 100% { transform: scale(.82); } }
 
 /* =================================================================== HOME == */
 .home { align-items: center; }
@@ -492,6 +514,7 @@ body::before {
 .tray { display: flex; flex-wrap: wrap; gap: 10px; }
 .tile {
   min-width: 58px; height: 56px; padding: 0 12px; border: none; cursor: grab;
+  display: inline-flex; align-items: center; justify-content: center;
   border-radius: 15px; background: #fff; color: var(--ink); font-size: 1.5rem;
   box-shadow: 0 5px 0 #e3d3b0, var(--shadow-md); transition: transform .1s, box-shadow .1s, opacity .15s;
   touch-action: none; -webkit-user-select: none; user-select: none;
@@ -558,7 +581,11 @@ body::before {
 .complete .star--on:nth-child(3) { animation-delay: .46s; }
 .complete__score { display: inline-flex; align-items: baseline; gap: 8px; background: var(--paper); padding: .5em 1.4em; border-radius: 16px; margin-bottom: 8px; }
 .complete__score strong { font-family: var(--font-display); font-size: 2rem; color: var(--orange-d); }
-.complete__perfect { color: var(--green-d); font-weight: 700; margin: 6px 0; }
+.complete__notes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 2px; }
+.complete__note { font-weight: 700; font-size: .95rem; padding: .32em .8em; border-radius: 999px; }
+.complete__note--good { color: var(--green-d); background: rgba(55, 178, 107, .14); }
+.complete__note--streak { color: var(--orange-d); background: rgba(255, 138, 61, .16); }
+.complete__note--heart { color: var(--pink); background: rgba(239, 93, 168, .14); }
 .complete__actions { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 18px; }
 
 /* ============================================================= confetti === */
