@@ -18,13 +18,13 @@ export function runStep({ level, building, consoleBody, banner, scoreApi }) {
 
     banner.innerHTML = '';
     banner.append(
-      h('strong', {}, 'כמה עולים בכל קומה? 🛗'),
+      h('strong', {}, 'בכמה עולים בכל קומה? 🛗'),
       h('span', {}, 'הביטו בבניין ובחרו את הקפיצה שבין קומה לקומה.'),
     );
 
     const tray = h('div', { class: 'tray step-options' });
     consoleBody.innerHTML = '';
-    consoleBody.append(h('div', { class: 'tray-title' }, 'כל קומה שווה ל...'), tray);
+    consoleBody.append(h('div', { class: 'tray-title' }, 'כל קפיצה שווה ל...'), tray);
 
     let attempts = 0;
     const options = shuffle(makeStepOptions(level));

@@ -61,7 +61,7 @@ export function renderGame({ navigate, params }) {
     phaseChip.innerHTML = '';
     phaseChip.append(
       h('span', { class: 'phase-chip__step' + (k === 1 ? ' is-active' : ' is-done') }, '1'),
-      h('span', { class: 'phase-chip__label' }, k === 1 ? 'כמה עולים בכל קומה?' : 'משבצים מספרים'),
+      h('span', { class: 'phase-chip__label' }, k === 1 ? 'בכמה עולים בכל קומה?' : 'משבצים מספרים'),
       h('span', { class: 'phase-chip__step' + (k === 2 ? ' is-active' : '') }, '2'),
     );
   }

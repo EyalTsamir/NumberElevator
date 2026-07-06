@@ -23,7 +23,7 @@ export function renderHome({ navigate }) {
       miniTower(),
       h('div', { class: 'home__copy' },
         h('h1', { class: 'title' }, 'מעלית המספרים'),
-        h('p', { class: 'subtitle' }, 'עלו וירדו בציר המספרים — גלו את הקפיצה ושבצו את הקומות!'),
+        h('p', { class: 'subtitle' }, 'עלו וירדו בציר המספרים — גלו את הקפיצה ושבצו את המספרים!'),
         button('בואו נשחק', () => { sfx.click(); navigate('select'); }, { variant: 'accent', size: 'lg', icon: '🛗' }),
         h('p', { class: 'home__hint' }, 'קומת הקרקע היא 0 · למעלה מספרים חיוביים · במרתף מספרים שליליים'),
       ),
@@ -86,7 +86,7 @@ export function renderComplete({ navigate, params }) {
     nextId
       ? button('לשלב הבא', () => { sfx.click(); navigate('game', { levelId: nextId }); },
           { variant: nextOpen ? 'accent' : 'ghost', size: 'lg', icon: '➜' })
-      : button('סיימתם את הסוג!', () => { sfx.click(); navigate('select'); }, { variant: 'accent', size: 'lg', icon: '🎉' }),
+      : button('סיימתם את הקבוצה!', () => { sfx.click(); navigate('select'); }, { variant: 'accent', size: 'lg', icon: '🎉' }),
     button('שוב', () => { sfx.click(); navigate('game', { levelId }); }, { variant: 'primary', icon: '↻' }),
     button('לתפריט', () => { sfx.click(); navigate('select'); }, { variant: 'ghost', icon: '≡' }),
   );
