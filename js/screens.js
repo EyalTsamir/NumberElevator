@@ -23,7 +23,7 @@ export function renderHome({ navigate }) {
       miniTower(),
       h('div', { class: 'home__copy' },
         h('h1', { class: 'title' }, 'מעלית המספרים'),
-        h('p', { class: 'subtitle' }, 'עלו וירדו בציר המספרים — בנו את הקומות והסיעו נוסעים!'),
+        h('p', { class: 'subtitle' }, 'עלו וירדו בציר המספרים — גלו את הקפיצה ושבצו את הקומות!'),
         button('בואו נשחק', () => { sfx.click(); navigate('select'); }, { variant: 'accent', size: 'lg', icon: '🛗' }),
         h('p', { class: 'home__hint' }, 'קומת הקרקע היא 0 · למעלה מספרים חיוביים · במרתף מספרים שליליים'),
       ),

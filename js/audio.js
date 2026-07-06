@@ -68,22 +68,6 @@ export function wrong() {
   });
 }
 
-// Elevator moving — soft rising whoosh scaled to distance
-export function travel(steps = 1) {
-  play(() => {
-    const dur = Math.min(0.18 + steps * 0.12, 1.1);
-    note(180, 0, dur, { type: 'sine', peak: 0.12, glideTo: 180 + steps * 60 });
-  });
-}
-
-// Passenger delivered — bright elevator ding
-export function ding() {
-  play(() => {
-    note(988, 0, 0.5, { type: 'sine', peak: 0.22 });   // B5
-    note(1319, 0.02, 0.55, { type: 'sine', peak: 0.14 }); // E6 shimmer
-  });
-}
-
 // Level complete — happy little fanfare
 export function win() {
   play(() => {

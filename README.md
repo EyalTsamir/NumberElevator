@@ -13,12 +13,10 @@ Pages straight from the repository.
 
 בכל שלב יש **שני חלקים**:
 
-1. **בונים את ציר המספרים** — משבצים את כל המספרים בקומות הריקות (הקישו על מספר ואז על הקומה שלו).
-2. **מסיעים נוסעים** — לכל נוסע יש קומת מוצא ויעד:
-   - **מדידת מרחק** — כמה קומות תיסע המעלית? (מקלדת מספרים)
-   - **מציאת יעד** — "לעלות / לרדת N קומות" → הקישו על הקומה הנכונה בבניין.
+1. **מוצאים את הקפיצה** — מביטים בבניין (עם כמה קומות "עוגן" שכבר מסומנות) ובוחרים מתוך כמה אפשרויות כמה כל קומה שווה.
+2. **משבצים את המספרים** — גוררים כל מספר מהמגש לקומה הריקה שמתאימה לו.
 
-תשובה נכונה → המעלית נוסעת, *דינג*, וניקוד. תשובה שגויה → "נסה שוב" (בלי עונש).
+תשובה נכונה → צליל שמח וניקוד. תשובה שגויה → "נסה שוב" (בלי עונש).
 
 ### התוכן — 3 סוגים × 4 שלבים
 
@@ -79,10 +77,9 @@ js/
   game.js             one level: runs phase 1 → phase 2, scoring, stars
   levels.js           the 12-level configuration
   building.js         renders the tower / number line / elevator car
-  elevator.js         car movement + door animation
-  phaseSetup.js       phase 1 — place the floor labels
-  phasePlay.js        phase 2 — passenger deliveries
-  passengers.js       passenger generation + characters
+  elevator.js         car placement + door animation
+  phaseStep.js        phase 1 — guess the floor-to-floor increment
+  phaseSetup.js       phase 2 — drag the numbers onto their floors
   numbers.js          number-line math + fraction/decimal formatting
   ui.js               DOM helpers + shared widgets
   audio.js            Web-Audio sound effects (no audio files)

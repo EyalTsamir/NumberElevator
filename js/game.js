@@ -1,13 +1,13 @@
-// game.js — orchestrates one level: build the tower, run phase 1 (fill the
-// number line) then phase 2 (deliver passengers), tally score/stars, and finish.
+// game.js — orchestrates one level: build the tower, run phase 1 (guess the
+// increment) then phase 2 (drag the numbers onto the tower), tally score/stars, and finish.
 
 import { h, muteToggle } from './ui.js';
 import { getLevel, getType } from './levels.js';
 import { recordResult } from './state.js';
 import { createBuilding, fitBuilding } from './building.js';
 import { createElevator } from './elevator.js';
+import { runStep } from './phaseStep.js';
 import { runSetup } from './phaseSetup.js';
-import { runPlay } from './phasePlay.js';
 import * as sfx from './audio.js';
 
 export function renderGame({ navigate, params }) {
@@ -48,6 +48,11 @@ export function renderGame({ navigate, params }) {
       muteToggle(),
     ),
     stage,
+    // shown only when a phone is held sideways (portrait-first game)
+    h('div', { class: 'rotate-hint', 'aria-hidden': 'true' },
+      h('div', { class: 'rotate-hint__icon' }, '📱'),
+      h('p', {}, 'סובבו את הטלפון לאורך כדי לשחק 🙂'),
+    ),
   );
 
   function setPhase(k) {
@@ -56,27 +61,56 @@ export function renderGame({ navigate, params }) {
     phaseChip.innerHTML = '';
     phaseChip.append(
       h('span', { class: 'phase-chip__step' + (k === 1 ? ' is-active' : ' is-done') }, '1'),
-      h('span', { class: 'phase-chip__label' }, k === 1 ? 'בונים את הבניין' : 'מסיעים נוסעים'),
+      h('span', { class: 'phase-chip__label' }, k === 1 ? 'כמה עולים בכל קומה?' : 'משבצים מספרים'),
       h('span', { class: 'phase-chip__step' + (k === 2 ? ' is-active' : '') }, '2'),
     );
   }
 
-  const refit = () => { if (building.el.isConnected) fitBuilding(building, buildingWrap.clientHeight || 520); };
+  const minFloor = 34; // floor badges are drop targets in phase 2, so keep them touch-friendly
+  let lastAvail = -1;
+  const refit = () => {
+    if (!building.el.isConnected) return;
+    const cs = getComputedStyle(buildingWrap);
+    const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const avail = Math.round((buildingWrap.clientHeight || 520) - pad);
+    if (avail === lastAvail) return; // skip redundant fits / ResizeObserver loops
+    lastAvail = avail;
+    const { fits } = fitBuilding(building, avail, { minFloor });
+    if (!fits) building.scrollToValue(elevator.current()); // re-follow the car once the shaft becomes scrollable
+  };
   window.addEventListener('resize', refit);
+
+  // Re-fit whenever the building's available space changes — the bottom dock growing
+  // or shrinking per phase, the mobile URL bar toggling, orientation changes, etc.
+  const ro = new ResizeObserver(() => refit());
+  ro.observe(buildingWrap);
+
+  let rafPending = false;
+  const onVVResize = () => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; lastAvail = -1; refit(); });
+  };
+  window.visualViewport?.addEventListener('resize', onVVResize);
+  // Re-fit once the display font swaps in (it changes roof/base overhead slightly).
+  document.fonts?.ready.then(() => { lastAvail = -1; refit(); });
 
   requestAnimationFrame(async () => {
     refit();
     elevator.place(0);
+    elevator.openDoors();
     setPhase(1);
 
-    await runSetup({ level, building, elevator, consoleBody, banner, scoreApi });
+    await runStep({ level, building, consoleBody, banner, scoreApi });
 
     setPhase(2);
-    await runPlay({ level, building, elevator, consoleBody, banner, scoreApi });
+    await runSetup({ level, building, consoleBody, banner, scoreApi });
 
     const starCount = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
     recordResult(level.id, starCount, score);
     window.removeEventListener('resize', refit);
+    window.visualViewport?.removeEventListener('resize', onVVResize);
+    ro.disconnect();
     setTimeout(() => navigate('complete', { levelId: level.id, score, stars: starCount, mistakes }), 750);
   });
 

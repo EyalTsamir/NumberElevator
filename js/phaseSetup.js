@@ -1,6 +1,7 @@
-// phaseSetup.js — Phase 1: build the number line by placing every floor label.
-// Tap a number tile, then tap the floor it belongs to. Wrong picks shake and say
-// "try again" (via sound), never block. Resolves when every floor is filled.
+// phaseSetup.js — Phase 2: build the number line by dragging each tile onto
+// the floor it belongs to. The jump between floors was already established in
+// phase 1, so this is pure placement. Wrong drops shake and say "try again"
+// (via sound), never block; resolves when every floor is filled.
 
 import { h } from './ui.js';
 import { key, round, rangeFloors, formatValueHTML, formatValue } from './numbers.js';
@@ -18,35 +19,28 @@ export function runSetup({ level, building, consoleBody, banner, scoreApi }) {
     const grid = rangeFloors(level.min, level.max, level.step);
     const gridKeys = new Set(grid.map(key));
     const anchorKeys = new Set(level.anchors.map(key));
-
-    level.anchors.forEach((v) => building.fillFloor(v, { locked: true, anchor: true }));
-
     const blanks = grid.filter((v) => !anchorKeys.has(key(v)));
     let remaining = blanks.length;
 
     banner.innerHTML = '';
     banner.append(
-      h('strong', {}, 'בונים את ציר המספרים 🏗️'),
-      h('span', {}, 'הקישו על מספר, ואז על הקומה שלו. הקפיצה בין הקומות קבועה!'),
+      h('strong', {}, 'משבצים את המספרים 🏗️'),
+      h('span', {}, 'גררו כל מספר לקומה שמתאימה לו.'),
     );
 
-    // Turn empty badges into tappable slots.
+    // Turn empty badges into drop targets.
     const openSlots = new Map(); // key -> {value, badge}
     blanks.forEach((v) => {
       const f = building.floorAt(v);
       f.badge.classList.add('is-slot');
-      f.badge.setAttribute('role', 'button');
-      f.badge.setAttribute('tabindex', '0');
       f.badge.setAttribute('aria-label', 'קומה ריקה');
-      f.badge.addEventListener('click', () => pickSlot(v, f.badge));
-      f.badge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickSlot(v, f.badge); } });
       openSlots.set(key(v), { value: v, badge: f.badge });
     });
 
     // Build the tile tray (correct values + a few distractors, shuffled).
     const tray = h('div', { class: 'tray' });
     consoleBody.innerHTML = '';
-    consoleBody.append(h('div', { class: 'tray-title' }, 'המספרים שצריך לשבֵּץ'), tray);
+    consoleBody.append(h('div', { class: 'tray-title' }, 'גררו כל מספר לקומה שלו'), tray);
 
     const distractors = makeDistractors(level, gridKeys, level.distractors);
     const tiles = shuffle([
@@ -54,72 +48,115 @@ export function runSetup({ level, building, consoleBody, banner, scoreApi }) {
       ...distractors.map((v) => ({ value: v })),
     ]);
     tiles.forEach((t) => {
-      const el = h('button', { class: 'tile', type: 'button', 'aria-label': formatValue(t.value, level.type) });
+      const el = h('div', { class: 'tile', 'aria-label': formatValue(t.value, level.type) });
       el.innerHTML = formatValueHTML(t.value, level.type);
-      el.addEventListener('click', () => pickTile(t.value, el));
       tray.append(el);
+      makeDraggable(el, (slotBadge) => handleDrop(t.value, el, slotBadge));
     });
 
-    let pickedTile = null; // { value, el }
-    let pickedSlot = null; // { value, badge }
+    function handleDrop(value, tileEl, slotBadge) {
+      if (!slotBadge) return; // dropped on empty space — snap back silently, no penalty
+      const slotKey = slotBadge.dataset.value;
+      const slot = openSlots.get(slotKey);
+      if (!slot) return; // already filled
 
-    const dropTile = () => { pickedTile?.el.classList.remove('is-picked'); pickedTile = null; };
-    const dropSlot = () => { pickedSlot?.badge.classList.remove('is-target'); pickedSlot = null; };
-
-    function pickTile(value, el) {
-      if (pickedTile && pickedTile.el === el) { dropTile(); return; }
-      dropTile();
-      pickedTile = { value, el };
-      el.classList.add('is-picked');
-      sfx.click();
-      tryPair();
-    }
-    function pickSlot(value, badge) {
-      if (!openSlots.has(key(value))) return;
-      if (pickedSlot && pickedSlot.badge === badge) { dropSlot(); return; }
-      dropSlot();
-      pickedSlot = { value, badge };
-      badge.classList.add('is-target');
-      tryPair();
-    }
-
-    function tryPair() {
-      if (!pickedTile || !pickedSlot) return;
-      const tile = pickedTile;
-      const slot = pickedSlot;
-
-      if (key(tile.value) === key(slot.value)) {
+      if (key(value) === slotKey) {
         building.fillFloor(slot.value, { locked: true });
-        slot.badge.classList.remove('is-slot', 'is-target');
-        slot.badge.removeAttribute('role');
-        slot.badge.removeAttribute('tabindex');
-        openSlots.delete(key(slot.value));
-        tile.el.disabled = true;
-        tile.el.classList.add('placed');
-        setTimeout(() => tile.el.remove(), 200);
+        slot.badge.classList.remove('is-slot');
+        slot.badge.removeAttribute('aria-label');
+        openSlots.delete(slotKey);
+        tileEl.classList.add('placed');
+        setTimeout(() => tileEl.remove(), 200);
         sfx.place();
         scoreApi.add(10);
-        pickedTile = null; pickedSlot = null;
         if (--remaining === 0) done();
       } else {
         sfx.wrong();
         scoreApi.mistake();
-        const t = pickedTile.el, b = pickedSlot.badge;
-        t.classList.add('shake'); b.classList.add('shake');
-        setTimeout(() => { t.classList.remove('shake'); b.classList.remove('shake'); }, 440);
-        dropTile(); dropSlot();
+        slotBadge.classList.add('shake');
+        tileEl.classList.add('shake');
+        setTimeout(() => { slotBadge.classList.remove('shake'); tileEl.classList.remove('shake'); }, 440);
       }
     }
 
     async function done() {
       banner.innerHTML = '';
-      banner.append(h('strong', { class: 'banner--win' }, 'הבניין מוכן! מתחילים להסיע 🛗'));
+      banner.append(h('strong', { class: 'banner--win' }, 'הבניין מוכן! 🎉'));
       building.el.classList.add('ready-pulse');
       await wait(950);
       building.el.classList.remove('ready-pulse');
       finish();
     }
   });
+}
+
+/**
+ * Makes `el` draggable via Pointer Events (unifies mouse, touch & pen).
+ * A floating clone follows the pointer while the source dims in place;
+ * `onDrop(slotBadge | null)` fires with whatever floor badge is under the
+ * pointer at release.
+ */
+function makeDraggable(el, onDrop) {
+  let ghost = null;
+  let offsetX = 0, offsetY = 0;
+  let hovered = null;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+
+    ghost = el.cloneNode(true);
+    ghost.classList.add('tile--ghost');
+    Object.assign(ghost.style, {
+      position: 'fixed', left: rect.left + 'px', top: rect.top + 'px',
+      width: rect.width + 'px', height: rect.height + 'px', margin: '0', pointerEvents: 'none',
+    });
+    document.body.append(ghost);
+    el.classList.add('is-dragging-src');
+    sfx.click();
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  });
+
+  function onMove(e) {
+    ghost.style.left = (e.clientX - offsetX) + 'px';
+    ghost.style.top = (e.clientY - offsetY) + 'px';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const slot = under?.closest('.floor__badge.is-slot') || null;
+    if (slot !== hovered) {
+      hovered?.classList.remove('is-target');
+      hovered = slot;
+      hovered?.classList.add('is-target');
+    }
+  }
+
+  function onUp(e) {
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const slot = under?.closest('.floor__badge.is-slot') || null;
+    teardown();
+    onDrop(slot);
+  }
+
+  function onCancel() {
+    teardown();
+    onDrop(null);
+  }
+
+  function teardown() {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
+    hovered?.classList.remove('is-target');
+    hovered = null;
+    ghost?.remove();
+    ghost = null;
+    el.classList.remove('is-dragging-src');
+  }
 }
 
 /** A few plausible wrong tiles, taken from just outside the axis range. */
