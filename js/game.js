@@ -1,8 +1,10 @@
-// game.js — orchestrates one level: build the tower, run phase 1 (guess the
-// increment) then phase 2 (drag the numbers onto the tower), tally score/stars, and finish.
+// game.js — orchestrates one STAGE: its 4 elevators are played back-to-back.
+// For each elevator we (re)build the tower, run phase 1 (guess the increment) then
+// phase 2 (drag the numbers onto the tower). Score, hearts and streak carry across
+// all 4 elevators; stars are tallied once, for the whole stage, at the end.
 
 import { h, muteToggle } from './ui.js';
-import { getExercise, getGrade } from './levels.js';
+import { getStage, getGrade } from './levels.js';
 import { recordResult } from './state.js';
 import { createBuilding, fitBuilding } from './building.js';
 import { createElevator } from './elevator.js';
@@ -10,13 +12,16 @@ import { runStep } from './phaseStep.js';
 import { runSetup } from './phaseSetup.js';
 import * as sfx from './audio.js';
 
-export function renderGame({ navigate, params }) {
-  const level = getExercise(params.levelId);
-  const grade = getGrade(level.grade);
-  const building = createBuilding(level);
-  const elevator = createElevator(building);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  const MAX_HEARTS = 3;
+export function renderGame({ navigate, params }) {
+  const stage = getStage(params.levelId);
+  const grade = getGrade(stage.grade);
+  const elevators = stage.elevators;
+
+  // Hearts carry across the whole stage (4 elevators ≈ 4× the old length), so the
+  // stage gets a bigger, more forgiving pool than a single old exercise did.
+  const MAX_HEARTS = 5;
   let score = 0;
   let mistakes = 0;
   let streak = 0;      // correct answers in a row — drives the reward bonus
@@ -40,6 +45,14 @@ export function renderGame({ navigate, params }) {
     const pop = h('span', { class: 'gain-pop' + (hot ? ' gain-pop--hot' : '') }, text);
     scorePill.append(pop);
     setTimeout(() => pop.remove(), 850);
+  }
+
+  // A brief, kind message that never blocks play (e.g. when the last heart goes).
+  function toast(text) {
+    const t = h('div', { class: 'toast', role: 'status' }, text);
+    screen.append(t);
+    setTimeout(() => t.classList.add('is-out'), 2300);
+    setTimeout(() => t.remove(), 2800);
   }
 
   const scoreApi = {
@@ -66,6 +79,9 @@ export function renderGame({ navigate, params }) {
         livesEl.classList.remove('lives--nudge'); void livesEl.offsetWidth; livesEl.classList.add('lives--nudge');
         setTimeout(() => { heart.classList.remove('losing'); heart.classList.add('is-lost'); }, 400);
       }
+      // Mark the moment the last heart goes — stars can't drop further, so reassure
+      // rather than let it pass silently. Fires exactly once (mistakes can exceed MAX).
+      if (mistakes === MAX_HEARTS) toast('נגמרו הלבבות — תמשיכו, אתם עדיין יכולים לסיים! 💪');
     },
   };
 
@@ -73,20 +89,45 @@ export function renderGame({ navigate, params }) {
   const banner = h('div', { class: 'banner' });
   const consoleBody = h('div', { class: 'console__body' });
 
-  const buildingWrap = h('div', { class: 'stage__building' }, building.el);
-  const stage = h('div', { class: 'stage' },
+  // A tower is rebuilt for every elevator; the wrapper stays put (ResizeObserver target).
+  let building = null;
+  let elevator = null;
+  const buildingWrap = h('div', { class: 'stage__building' });
+  const stageEl = h('div', { class: 'stage' },
     buildingWrap,
     h('div', { class: 'console' }, phaseChip, banner, consoleBody),
   );
 
+  // Stage progress: one dot per elevator, so the child sees "how many towers left".
+  const elevDots = elevators.map(() => h('span', { class: 'elev-dot' }));
+  const elevTrack = h('div', { class: 'elev-track', role: 'img', 'aria-label': `מעלית 1 מתוך ${elevators.length}` },
+    h('span', { class: 'elev-track__cap' }, '🛗 מעלית'),
+    h('div', { class: 'elev-dots' }, ...elevDots),
+    h('span', { class: 'elev-track__count' }, `1/${elevators.length}`),
+  );
+  const titleFull = h('span', { class: 'topbar__title-full' }, `${grade.name} · שלב ${stage.index}`);
+  const titleShort = h('span', { class: 'topbar__title-short' }, `${grade.short} · ${stage.index}`);
+  function updateElevProgress(idx) {
+    elevDots.forEach((d, i) => {
+      d.classList.toggle('is-done', i < idx);
+      d.classList.toggle('is-active', i === idx);
+    });
+    elevTrack.querySelector('.elev-track__count').textContent = `${idx + 1}/${elevators.length}`;
+    elevTrack.setAttribute('aria-label', `מעלית ${idx + 1} מתוך ${elevators.length}`);
+  }
+
   const screen = h('div', { class: 'screen game phase-1', style: { '--hue': grade.hue } },
     h('div', { class: 'topbar' },
-      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'חזרה לתפריט', onClick: () => { sfx.click(); navigate('select'); } }, '→'),
-      h('span', { class: 'topbar__title' }, `${grade.name} · תרגיל ${level.index}`),
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'חזרה לתפריט', title: 'חזרה לבחירת שלב', onClick: () => { sfx.click(); navigate('select'); } }, '→'),
+      // Full label on roomy screens; a compact "א׳ · 2" form on narrow phones so the
+      // stage number never gets ellipsis-clipped. Whichever is shown (the other is
+      // display:none) is the one a screen reader reads.
+      h('span', { class: 'topbar__title' }, titleFull, titleShort),
       h('div', { class: 'status' }, livesEl, scorePill),
       muteToggle(),
     ),
-    stage,
+    elevTrack,
+    stageEl,
     // shown only when a phone is held sideways (portrait-first game)
     h('div', { class: 'rotate-hint', 'aria-hidden': 'true' },
       h('div', { class: 'rotate-hint__icon' }, '📱'),
@@ -108,7 +149,7 @@ export function renderGame({ navigate, params }) {
   const minFloor = 34; // floor badges are drop targets in phase 2, so keep them touch-friendly
   let lastAvail = -1;
   const refit = () => {
-    if (!building.el.isConnected) return;
+    if (!building?.el.isConnected) return;
     const cs = getComputedStyle(buildingWrap);
     const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
     const avail = Math.round((buildingWrap.clientHeight || 520) - pad);
@@ -134,30 +175,58 @@ export function renderGame({ navigate, params }) {
   // Re-fit once the display font swaps in (it changes roof/base overhead slightly).
   document.fonts?.ready.then(() => { lastAvail = -1; refit(); });
 
-  requestAnimationFrame(async () => {
+  // Swap a fresh tower into the shaft for the elevator at `idx`.
+  function mountElevator(idx) {
+    const level = elevators[idx];
+    building = createBuilding(level);
+    elevator = createElevator(building);
+    building.el.classList.add('is-enter');
+    buildingWrap.replaceChildren(building.el);
+    requestAnimationFrame(() => building?.el.classList.remove('is-enter'));
+    lastAvail = -1;
     refit();
     // Park the car on the lowest given anchor — its readout then shows a number the
     // child already has, never leaking the value of a blank floor (windows rarely include 0).
     elevator.place(Math.min(...level.anchors));
     elevator.openDoors();
-    setPhase(1);
+    updateElevProgress(idx);
+    return level;
+  }
 
-    await runStep({ level, building, consoleBody, banner, scoreApi });
-
-    setPhase(2);
-    await runSetup({ level, building, consoleBody, banner, scoreApi });
-
-    // Stars simply mirror the hearts kept — one clear, visible rule (always ≥1).
-    const hearts = heartsLeft();
-    const starCount = Math.max(1, hearts);
-    // Careful-play reward: a bonus for every heart still full.
-    const heartBonus = hearts * 15;
-    if (heartBonus) { score += heartBonus; scoreEl.textContent = String(score); }
-    recordResult(level.id, starCount, score);
+  function cleanup() {
     window.removeEventListener('resize', refit);
     window.visualViewport?.removeEventListener('resize', onVVResize);
     ro.disconnect();
-    setTimeout(() => navigate('complete', { levelId: level.id, score, stars: starCount, mistakes, hearts, heartBonus, bestStreak }), 750);
+  }
+
+  requestAnimationFrame(async () => {
+    for (let i = 0; i < elevators.length; i++) {
+      const level = mountElevator(i);
+
+      setPhase(1);
+      await runStep({ level, building, consoleBody, banner, scoreApi });
+
+      setPhase(2);
+      await runSetup({ level, building, consoleBody, banner, scoreApi });
+
+      // A short breath between towers so the swap doesn't feel abrupt.
+      if (i < elevators.length - 1) {
+        banner.innerHTML = '';
+        banner.append(h('strong', { class: 'banner--win' }, `מעלית ${i + 2} מגיעה… 🛗`));
+        await wait(700);
+      }
+    }
+
+    // Stars for the whole stage, from the hearts kept (one clear, visible rule):
+    // ≤1 mistake → 3, ≤3 → 2, otherwise 1 (never below 1).
+    const hearts = heartsLeft();
+    const starCount = hearts >= 4 ? 3 : hearts >= 2 ? 2 : 1;
+    // Careful-play reward: a bonus for every heart still full.
+    const heartBonus = hearts * 15;
+    if (heartBonus) { score += heartBonus; scoreEl.textContent = String(score); }
+    recordResult(stage.id, starCount, score);
+    cleanup();
+    setTimeout(() => navigate('complete', { levelId: stage.id, score, stars: starCount, mistakes, hearts, heartBonus, bestStreak }), 750);
   });
 
   return screen;

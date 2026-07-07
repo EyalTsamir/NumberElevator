@@ -13,6 +13,21 @@ const shuffle = (arr) => {
   return a;
 };
 
+/**
+ * A gentle nudge for a child who's genuinely stuck: after three misses on the
+ * same question it adds a hint line and pulses the two given (anchor) floors, so
+ * they can count the steps between them. Returns a function to call on each miss.
+ */
+function makeHinter({ level, building, banner }) {
+  let misses = 0, shown = false;
+  return () => {
+    if (shown || ++misses < 3) return;
+    shown = true;
+    banner.append(h('span', { class: 'banner-hint' }, '💡 רמז: ספרו כמה עולים בין שני המספרים הצהובים.'));
+    level.anchors.forEach((v) => building.floorAt(v)?.badge.classList.add('hint-pulse'));
+  };
+}
+
 export function runStep(ctx) {
   const { level } = ctx;
   return level.type === 'fraction' ? runChoose(ctx) : runType(ctx);
@@ -22,6 +37,7 @@ export function runStep(ctx) {
 function runType({ level, building, consoleBody, banner, scoreApi }) {
   return new Promise((finish) => {
     level.anchors.forEach((v) => building.fillFloor(v, { locked: true, anchor: true }));
+    const hint = makeHinter({ level, building, banner });
 
     banner.innerHTML = '';
     banner.append(
@@ -98,6 +114,7 @@ function runType({ level, building, consoleBody, banner, scoreApi }) {
         sfx.wrong();
         scoreApi.mistake();
         attempts++;
+        hint();
         entryEl.classList.add('shake');
         setTimeout(() => { entryEl.classList.remove('shake'); entry = ''; paint(); }, 440);
       }
@@ -120,6 +137,7 @@ function runType({ level, building, consoleBody, banner, scoreApi }) {
 function runChoose({ level, building, consoleBody, banner, scoreApi }) {
   return new Promise((finish) => {
     level.anchors.forEach((v) => building.fillFloor(v, { locked: true, anchor: true }));
+    const hint = makeHinter({ level, building, banner });
 
     banner.innerHTML = '';
     banner.append(
@@ -152,6 +170,7 @@ function runChoose({ level, building, consoleBody, banner, scoreApi }) {
         sfx.wrong();
         scoreApi.mistake();
         attempts++;
+        hint();
         el.disabled = true;
         el.classList.add('shake', 'is-wrong');
         setTimeout(() => el.classList.remove('shake'), 440);

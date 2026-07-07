@@ -1,8 +1,22 @@
 // confetti.js — a self-contained canvas confetti burst for celebrations.
 
-const COLORS = ['#f7c948', '#ff7a59', '#4c9aff', '#37b26b', '#ef5da8', '#8b5cf6'];
+const BASE_COLORS = ['#f7c948', '#ff7a59', '#4c9aff', '#37b26b', '#ef5da8', '#8b5cf6'];
 
-export function confetti({ count = 130, duration = 2800 } = {}) {
+/** Tints/shades around a grade's hue (+ a warm neutral) so the burst matches the
+ *  color world of the level just finished. */
+function paletteFromHue(h) {
+  return [
+    `hsl(${h} 85% 62%)`,
+    `hsl(${h} 90% 72%)`,
+    `hsl(${(h + 28) % 360} 82% 60%)`,
+    `hsl(${(h + 332) % 360} 84% 64%)`,
+    `hsl(${h} 70% 50%)`,
+    '#fff6cf',
+  ];
+}
+
+export function confetti({ count = 130, duration = 2800, hue = null } = {}) {
+  const COLORS = hue == null ? BASE_COLORS : paletteFromHue(hue);
   const canvas = document.createElement('canvas');
   canvas.className = 'confetti-canvas';
   document.body.append(canvas);
