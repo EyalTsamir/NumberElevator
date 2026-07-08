@@ -60,3 +60,28 @@ export function muteToggle() {
   return btn;
 }
 
+/**
+ * Fullscreen toggle: with no page-level scroll, mobile browsers never get the
+ * gesture they use to auto-hide their own address bar, so on a short phone it
+ * permanently eats into the game's height. The Fullscreen API reclaims that
+ * space, but browsers only allow entering it from a real tap (never on load),
+ * so this is a button, not something automatic. Returns null where unsupported
+ * (notably iPhone Safari) rather than rendering a button that can't do anything.
+ */
+export function fullscreenToggle() {
+  if (!document.documentElement.requestFullscreen) return null;
+  const btn = h('button', { class: 'icon-btn', type: 'button', title: 'מסך מלא' });
+  const paint = () => {
+    const isFull = !!document.fullscreenElement;
+    btn.setAttribute('aria-label', isFull ? 'צאו ממסך מלא' : 'הפעילו מסך מלא — לראות יותר מהבניין');
+    btn.textContent = isFull ? '⤢' : '⛶';
+  };
+  btn.addEventListener('click', () => {
+    sfx.click();
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', paint);
+  paint();
+  return btn;
+}

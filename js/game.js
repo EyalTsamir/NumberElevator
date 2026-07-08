@@ -3,7 +3,7 @@
 // phase 2 (drag the numbers onto the tower). Score, hearts and streak carry across
 // all 4 elevators; stars are tallied once, for the whole stage, at the end.
 
-import { h, muteToggle } from './ui.js';
+import { h, muteToggle, fullscreenToggle } from './ui.js';
 import { getStage, getGrade } from './levels.js';
 import { recordResult } from './state.js';
 import { createBuilding, fitBuilding } from './building.js';
@@ -89,14 +89,32 @@ export function renderGame({ navigate, params }) {
   const banner = h('div', { class: 'banner' });
   const consoleBody = h('div', { class: 'console__body' });
 
+  // Mobile-only: lets the child collapse the whole dock away to see the tower at
+  // full height (both anchor floors, uncropped) while working out the jump, then
+  // expand it back to type the answer. Purely a `.console.is-collapsed` CSS
+  // toggle — the building already grows into freed space via its ResizeObserver
+  // (see `refit` below), so no extra sizing logic is needed here.
+  let collapsed = false;
+  const handleIcon = h('span', { class: 'console__handle-icon', 'aria-hidden': 'true' }, '⌄');
+  const handleLabel = h('span', {}, 'הסתירו כדי לראות את כל המעלית');
+  const consoleHandle = h('button', {
+    class: 'console__handle', type: 'button', 'aria-expanded': 'true',
+  }, handleIcon, handleLabel);
+  function setCollapsed(next) {
+    collapsed = next;
+    consoleEl.classList.toggle('is-collapsed', collapsed);
+    consoleHandle.setAttribute('aria-expanded', String(!collapsed));
+    handleIcon.textContent = collapsed ? '⌃' : '⌄';
+    handleLabel.textContent = collapsed ? 'הציגו את המקלדת' : 'הסתירו כדי לראות את כל המעלית';
+  }
+  consoleHandle.addEventListener('click', () => { sfx.click(); setCollapsed(!collapsed); });
+
   // A tower is rebuilt for every elevator; the wrapper stays put (ResizeObserver target).
   let building = null;
   let elevator = null;
   const buildingWrap = h('div', { class: 'stage__building' });
-  const stageEl = h('div', { class: 'stage' },
-    buildingWrap,
-    h('div', { class: 'console' }, phaseChip, banner, consoleBody),
-  );
+  const consoleEl = h('div', { class: 'console' }, consoleHandle, phaseChip, banner, consoleBody);
+  const stageEl = h('div', { class: 'stage' }, buildingWrap, consoleEl);
 
   // Stage progress: one dot per elevator, so the child sees "how many towers left".
   const elevDots = elevators.map(() => h('span', { class: 'elev-dot' }));
@@ -124,6 +142,7 @@ export function renderGame({ navigate, params }) {
       // display:none) is the one a screen reader reads.
       h('span', { class: 'topbar__title' }, titleFull, titleShort),
       h('div', { class: 'status' }, livesEl, scorePill),
+      fullscreenToggle(),
       muteToggle(),
     ),
     elevTrack,
@@ -136,6 +155,7 @@ export function renderGame({ navigate, params }) {
   );
 
   function setPhase(k) {
+    setCollapsed(false); // fresh instructions each phase — never leave the dock hidden across a transition
     screen.classList.remove('phase-1', 'phase-2');
     screen.classList.add('phase-' + k);
     phaseChip.innerHTML = '';

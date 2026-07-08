@@ -54,9 +54,9 @@ export function renderHome({ navigate }) {
         h('h1', { class: 'title' }, 'מעלית המספרים'),
         h('p', { class: 'subtitle' }, 'טפסו בציר המספרים — גלו את גודל הקפיצה ומלאו את הקומות החסרות!'),
         button('בואו נשחק', () => { sfx.click(); navigate('select'); }, { variant: 'accent', size: 'lg', icon: '🛗' }),
-        h('p', { class: 'home__hint' }, 'לכל כיתה 4 שלבים · בכל שלב 4 מעליות · כותבים בכמה עולים בכל קפיצה וגוררים כל מספר לקומה שלו'),
       ),
     ),
+    h('p', { class: 'home__credit' }, 'רויטל צמיר · מתמטיקה בדרך אחרת'),
   );
 }
 

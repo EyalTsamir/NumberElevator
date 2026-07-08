@@ -202,7 +202,7 @@ body::before {
   color: var(--ink); text-shadow: 0 3px 0 #fff, 0 6px 0 rgba(233, 169, 78, .5);
 }
 .subtitle { font-size: clamp(1.05rem, 2.4vw, 1.4rem); color: var(--ink-soft); margin: 16px 0 26px; font-weight: 500; }
-.home__hint { margin-top: 20px; color: var(--ink-soft); font-size: .95rem; background: rgba(255, 255, 255, .6); padding: .6em 1em; border-radius: 14px; display: inline-block; }
+.home__credit { margin: 0 0 18px; color: var(--ink-soft); font-size: .9rem; opacity: .7; text-align: center; }
 
 /* decorative home tower — the real building component, sized down and hand-animated */
 .home__tower { width: clamp(150px, 46vw, 220px); filter: drop-shadow(0 18px 26px rgba(39, 50, 77, .25)); }
@@ -271,6 +271,8 @@ body::before {
 .stage { flex: 1; min-height: 0; display: flex; gap: 26px; padding: 6px 20px 20px; justify-content: center; }
 .stage__building { flex: 0 0 clamp(240px, 34vw, 360px); min-height: 0; display: flex; align-items: stretch; justify-content: center; container: bld / inline-size; }
 .console { flex: 0 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px; overflow: auto; padding: 4px 2px 10px; justify-content: center; }
+/* mobile-only pull-tab to collapse the dock away — see the mobile media query below */
+.console__handle { display: none; }
 
 .phase-chip { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); color: var(--ink-soft); }
 .phase-chip__step { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #fff; box-shadow: var(--shadow-md); color: var(--ink-soft); }
@@ -706,23 +708,48 @@ body::before {
     padding: 2px max(14px, var(--sar)) 0 max(14px, var(--sal));
   }
   /* building fills the space above the dock; it is always fully visible (shrinks
-     floors to fit, or scrolls with auto-follow when even the minimum won't fit) */
+     floors to fit, or scrolls with auto-follow when even the minimum won't fit).
+     The min-height is a hard floor: seeing the given (anchor) floors is the whole
+     point of phase 1, so the tower must never lose to a tall dock (e.g. the phase-1
+     keypad) — the dock shrinks and scrolls internally instead, see `.console` below. */
   .stage__building {
-    flex: 1 1 auto; min-height: 0;
+    /* flex-basis pinned to the same floor as min-height (not `auto`): flex splits a
+       shortfall between the two docks in proportion to their basis, so leaving this
+       at the tower's full natural size would still let it out-claim the console's
+       shrink share on a short screen. Pinning it low hands any extra shortfall to
+       the console instead — it can shrink and scroll, the tower can't go smaller. */
+    flex: 1 1 max(180px, 30dvh); min-height: max(180px, 30dvh);
     display: flex; align-items: center; justify-content: center;
     padding-top: 12px; /* headroom for the machine-room antenna above the roof box */
   }
   .building { max-height: 100%; }
 
-  /* console becomes a bottom dock within thumb reach, adapting to each phase */
+  /* console becomes a bottom dock within thumb reach, adapting to each phase.
+     flex-shrink is intentionally on (unlike the desktop rule): on a short viewport
+     the dock's natural content (e.g. the phase-1 keypad) can exceed the space left
+     after the building's floor above, so it shrinks and scrolls internally rather
+     than starving the building down to nothing. */
   .console {
-    flex: 0 0 auto; max-width: none; overflow: visible; justify-content: flex-start; gap: 6px;
+    flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+    max-width: none; justify-content: flex-start; gap: 6px;
     background: rgba(255, 255, 255, .8);
     border-radius: 22px 22px 0 0;
     box-shadow: 0 -8px 24px rgba(39, 50, 77, .12);
     padding: 8px max(14px, var(--sar)) calc(10px + var(--sab)) max(14px, var(--sal));
     margin-inline: calc(-1 * max(14px, var(--sal))) calc(-1 * max(14px, var(--sar)));
   }
+  /* pull-tab: collapses everything but itself, handing the freed space straight
+     to the tower (it grows into it automatically via its ResizeObserver — see
+     `refit` in game.js). Lets the child study both anchor floors uncropped,
+     then expand back to type the answer. */
+  .console__handle {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; border: none; background: none; cursor: pointer;
+    padding: 2px 0 6px; margin-top: -2px;
+    font-family: var(--font-display); font-size: .8rem; color: var(--ink-soft);
+  }
+  .console__handle-icon { font-size: 1rem; line-height: 1; }
+  .console.is-collapsed > :not(.console__handle) { display: none; }
   .phase-chip { display: none; } /* the task is stated in the banner; reclaim height for the building */
   /* keep the stage-progress dots (they show how many towers are left) but pare them down */
   .elev-track { padding: 1px 12px 3px; gap: 8px; }
@@ -743,7 +770,19 @@ body::before {
   .banner strong { font-size: 1rem; }
   .banner span { font-size: .82rem; line-height: 1.3; }
 
-  .home__hero { flex-direction: column-reverse; padding-bottom: 30px; }
+  /* phase-1 keypad, folded: the tallest dock content in the game, so it's kept
+     small by default on mobile rather than only under extra duress — the tower
+     above is the point of phase 1, and a shorter keypad always leaves it more
+     room. Fold 3×4 → 6×2: key DOM order is already the flat row-major sequence
+     1 2 3 4 5 6 7 8 9 • 0 ⌫ (phaseStep.js), so a 6-column grid re-wraps it as
+     "1 2 3 4 5 6 / 7 8 9 • 0 ⌫" with no JS changes — same keys, same order. */
+  .entry { min-height: 44px; }
+  .numpad { gap: 6px; }
+  .keypad { grid-template-columns: repeat(6, 1fr); gap: 6px; width: min(360px, 100%); }
+  .keypad__key { height: clamp(32px, 6dvh, 46px); font-size: 1.3rem; }
+  .keypad__key--ok { height: clamp(32px, 5.6dvh, 44px); width: min(360px, 100%); }
+
+  .home__hero { flex-direction: column-reverse; padding-bottom: 30px; gap: clamp(30px, 8vw, 70px); }
 }
 
 /* narrow screens: swap the full "כיתה א׳ · שלב 2" title for the compact "א׳ · 2"
