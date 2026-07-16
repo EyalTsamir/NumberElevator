@@ -272,10 +272,11 @@ export function runSetup({ level, building, consoleBody, banner, scoreApi }) {
 }
 
 /**
- * A few plausible wrong tiles. Mostly from just outside the axis range, but for
- * whole-number levels we occasionally slip in an IN-range value that sits between
- * two real floors — so a child can't win by always discarding "the biggest and
- * smallest"; ruling it out takes real number-line reasoning.
+ * A few plausible wrong tiles. We PREFER in-range "trap" values that sit between
+ * two real floors: an off-grid neighbour (e.g. 45 among 40·44·46·48) can't be sorted
+ * into place, it has to be reasoned out — so the child can't win by just ordering the
+ * tiles small→large. Any shortfall is filled with just-outside values. Fractions skip
+ * the traps: a value between two quarters would introduce an unlearned denominator.
  */
 function makeDistractors(level, gridKeys, count) {
   if (!count) return [];
@@ -289,16 +290,20 @@ function makeDistractors(level, gridKeys, count) {
     out.push(rv);
   };
 
-  if (level.type === 'whole' && s >= 2 && Math.random() < 0.6) {
-    const steps = Math.round((level.max - level.min) / s);
-    const gi = 1 + Math.floor(Math.random() * Math.max(1, steps - 1)); // an interior floor
-    const base = round(level.min + gi * s);
-    for (const cand of [base + 1, base - 1, base + 2]) {
-      if (cand > level.min && cand < level.max && !gridKeys.has(key(cand))) { pushIf(cand); break; }
-    }
+  const steps = Math.round((level.max - level.min) / s);
+
+  // In-range traps: one value inside each gap between adjacent floors, shuffled so the
+  // set differs run to run. `off` stays strictly inside the step (whole numbers round
+  // to a whole offset; step 1 has no room, so those land on-grid and get filtered out).
+  if (level.type !== 'fraction') {
+    const off = level.type === 'whole' ? Math.max(1, Math.round(s / 2)) : s / 2;
+    const mids = [];
+    for (let i = 0; i < steps; i++) mids.push(round(level.min + i * s + off));
+    for (const v of shuffle(mids)) { if (out.length >= count) break; pushIf(v); }
   }
 
-  const outside = [level.max + s, level.max + 2 * s, level.max + 3 * s, level.min - s, level.min - 2 * s].map(round);
+  // Fill any remainder from just outside the axis (above the top / below the bottom).
+  const outside = [level.max + s, level.max + 2 * s, level.min - s, level.max + 3 * s, level.min - 2 * s].map(round);
   for (const v of outside) { if (out.length >= count) break; pushIf(v); }
   return out.slice(0, count);
 }

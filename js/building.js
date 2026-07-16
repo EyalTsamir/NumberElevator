@@ -78,6 +78,10 @@ export function createBuilding(level) {
     h('div', { class: 'building__base' }),
   );
   el.style.setProperty('--nfloors', n);
+  // Widest label on this axis (e.g. "10400" = 5) drives the axis width + badge font,
+  // so big numbers get room and shrink to fit instead of spilling under the shaft.
+  const widest = Math.max(2, ...asc.map((v) => formatValue(v, level.type).length));
+  el.style.setProperty('--digits', widest);
 
   const floorAt = (value) => floors.find((f) => key(f.value) === key(value));
   const topIndexOf = (value) => { const f = floorAt(value); return f ? f.topIndex : 0; };

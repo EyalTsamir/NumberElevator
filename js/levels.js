@@ -40,9 +40,29 @@ function win(type, min, step, distractors = 2, floors = 6, a = 1, b = 4) {
   return { type, min: at(0), max: at(floors - 1), step: round(step, 6), anchors: [at(a), at(b)], distractors };
 }
 
+// Per-grade tuning applied to every window AFTER win() builds it. Centralised here
+// so the policy is one place, not sprinkled across ~90 win() calls (these override
+// whatever count/anchors a win() call passed):
+//   • distractors — how many decoy tiles phase 2 adds. A bigger tray (with the
+//     in-range "trap" decoys makeDistractors favours) stops a child from winning by
+//     just sorting the tiles small→large instead of reasoning where each one lands.
+//   • adjacent anchors — for the youngest grades the two GIVEN floors sit one
+//     directly above the other, so the jump reads straight off them (top − bottom)
+//     rather than having to be divided across a gap.
+const DISTRACTORS_BY_GRADE = { g1: 2, g2: 3, g3: 3, g4: 3, g5: 3, g6: 3, prep: 4 };
+const ADJACENT_ANCHOR_GRADES = new Set(['g1', 'g2', 'g3']);
+
+function tuneForGrade(grade, el) {
+  const distractors = DISTRACTORS_BY_GRADE[grade] ?? el.distractors;
+  const anchors = ADJACENT_ANCHOR_GRADES.has(grade)
+    ? [round(el.min + el.step, 6), round(el.min + 2 * el.step, 6)] // floors #1 and #2 — adjacent
+    : el.anchors;
+  return { ...el, distractors, anchors };
+}
+
 // A stage: 4 elevators, 4 different jumps, one theme.
 function stage(id, grade, index, theme, elevators) {
-  return { id, grade, index, theme, elevators };
+  return { id, grade, index, theme, elevators: elevators.map((el) => tuneForGrade(grade, el)) };
 }
 
 export const STAGES = [

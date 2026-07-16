@@ -299,7 +299,10 @@ body::before {
    Resolves against the .stage__building container; clamp keeps the px fallback sane. */
 @supports (width: 1cqi) {
   .building {
-    --axis-w: clamp(48px, 21cqi, 74px);
+    /* Widen the axis for long labels (5–7 digit floors): take the larger of the
+       normal responsive width and one sized to the digit count, capped so it can
+       never crowd out the shaft + room. --digits is set per level in building.js. */
+    --axis-w: clamp(48px, max(21cqi, calc(var(--digits, 3) * 0.7rem + 26px)), 112px);
     --shaft-w: clamp(66px, 27cqi, 96px);
   }
 }
@@ -383,8 +386,14 @@ body::before {
 .floor__axis { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding-inline-end: 6px; height: 100%; position: relative; z-index: 1; }
 .floor__tick { width: clamp(8px, 3cqi, 12px); height: 4px; background: rgba(217, 143, 62, .75); border-radius: 3px; }
 .floor__badge {
-  min-width: 42px; height: clamp(26px, calc(var(--floor-h) - 8px), 34px); padding: 0 8px; border-radius: 11px;
-  background: #fff; color: var(--ink); font-size: clamp(1rem, calc(var(--floor-h) * .45), 1.15rem);
+  min-width: 42px; height: clamp(26px, calc(var(--floor-h) - 8px), 34px); padding: 0 7px; border-radius: 11px;
+  background: #fff; color: var(--ink);
+  /* Cap at the comfortable size, but shrink so a long label still fits the axis
+     width (never spilling under the shaft). ~0.6em per digit → fit = width / digits / 0.6. */
+  font-size: min(
+    clamp(0.8rem, calc(var(--floor-h) * .45), 1.15rem),
+    calc((var(--axis-w) - 34px) / max(var(--digits, 2), 2) * 1.6)
+  );
   display: grid; place-items: center; transition: transform .12s ease; position: relative;
   box-shadow: 0 2px 0 rgba(217, 143, 62, .5), 0 3px 8px rgba(39, 50, 77, .14);
 }
